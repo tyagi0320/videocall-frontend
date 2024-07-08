@@ -3,7 +3,7 @@ import IconButton from "@material-ui/core/IconButton";
 import TextField from "@material-ui/core/TextField";
 import AssignmentIcon from "@material-ui/icons/Assignment";
 import PhoneIcon from "@material-ui/icons/Phone";
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { CopyToClipboard } from "react-copy-to-clipboard";
 import Peer from "simple-peer";
 import io from "socket.io-client";
@@ -23,21 +23,15 @@ function App() {
   const [name, setName] = useState("");
   const connectionRef = useRef();
 
-  const myVideo = useCallback(node => {
-    if (node !== null) {
-      node.srcObject = stream;
-    }
-  }, [stream]);
-
-  const userVideo = useCallback(node => {
-    if (node !== null && callAccepted && !callEnded) {
-      node.srcObject = stream;
-    }
-  }, [callAccepted, callEnded, stream]);
+  const myVideo = useRef();
+  const userVideo = useRef(); // Change: Remove useCallback and use useRef directly
 
   useEffect(() => {
     navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((stream) => {
       setStream(stream);
+      if (myVideo.current) {
+        myVideo.current.srcObject = stream; // Ensure myVideo.current is defined
+      }
     });
 
     socket.on("me", (id) => {
@@ -66,8 +60,10 @@ function App() {
         name: name,
       });
     });
-    peer.on("stream", (stream) => {
-      userVideo.current.srcObject = stream;
+    peer.on("stream", (peerStream) => { // Change: Use peerStream to differentiate from local stream
+      if (userVideo.current) {
+        userVideo.current.srcObject = peerStream;
+      }
     });
     socket.on("callAccepted", (signal) => {
       setCallAccepted(true);
@@ -87,8 +83,10 @@ function App() {
     peer.on("signal", (data) => {
       socket.emit("answerCall", { signal: data, to: caller });
     });
-    peer.on("stream", (stream) => {
-      userVideo.current.srcObject = stream;
+    peer.on("stream", (peerStream) => { // Change: Use peerStream to differentiate from local stream
+      if (userVideo.current) {
+        userVideo.current.srcObject = peerStream;
+      }
     });
 
     peer.signal(callerSignal);
